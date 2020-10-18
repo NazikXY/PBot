@@ -179,10 +179,10 @@ def add_new_position(update, context, txt=''):
 def new_position_handler(update, context):
     data = update.message.text
     print(dir(update))
-    print(dir(context))
+    print(dir(context.update_queue))
     context.bot.delete_message(update.message.chat_id, update.message.message_id)
     if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+,\s*[КЦБкцб]+\s*$', data) is not None:
-        add_new_position(update, context, data)
+        print(data.split(','))
 
 
 def stop(update, context):
@@ -202,6 +202,14 @@ def main():
     updater = Updater(TOKEN, use_context=True)
 
     dp = updater.dispatcher
+
+    first_level = ConversationHandler(
+        entry_points=[CommandHandler('start', start)],
+        states={
+            START: []
+        },
+        fallBacks=[]
+    )
 
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
