@@ -162,8 +162,10 @@ def product_handler(update, context):
     )
 
 
-def add_new_position(update, context):
-    text = "Введите название позиции, через запятую введите единицы измерения: \nНапример: Куриное филе, кг."
+def add_new_position(update, context, txt=''):
+    text = "Введите название позиции, через запятую введите единицы измерения:" \
+           " \nНапример: Куриное филе, кг." if txt == '' else txt
+
     buttons = [[
         InlineKeyboardButton("Назад",    callback_data=str(END))
     ]]
@@ -176,9 +178,11 @@ def add_new_position(update, context):
 
 def new_position_handler(update, context):
     data = update.message.text
+    print(dir(update))
+    print(dir(context))
     context.bot.delete_message(update.message.chat_id, update.message.message_id)
-    if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+,\s*[КЦБ]+\s*$', data) is not None:
-        print(True)
+    if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+,\s*[КЦБкцб]+\s*$', data) is not None:
+        add_new_position(update, context, txt)
 
 
 def stop(update, context):
