@@ -182,7 +182,7 @@ def new_position_handler(update, context):
     print(dir(context))
     context.bot.delete_message(update.message.chat_id, update.message.message_id)
     if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+,\s*[КЦБкцб]+\s*$', data) is not None:
-        add_new_position(update, context, txt)
+        add_new_position(update, context, data)
 
 
 def stop(update, context):
