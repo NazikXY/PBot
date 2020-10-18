@@ -203,14 +203,6 @@ def main():
 
     dp = updater.dispatcher
 
-    first_level = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
-        states={
-            START: []
-        },
-        fallBacks=[]
-    )
-
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
