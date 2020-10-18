@@ -174,7 +174,7 @@ def add_new_position(update, context):
 
     update.callback_query.answer()
     update.callback_query.edit_message_text(text=text, reply_markup=kb)
-    return TYPING
+    return TYPINGg
 
 
 def new_position_handler(update, context):
