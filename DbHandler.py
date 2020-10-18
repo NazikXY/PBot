@@ -34,8 +34,11 @@ class DBHandler():
         return self._current_order, self._cursor.execute('SELECT * FROM "'+str(self._current_order)+'"').fetchall()
 
     def add_to_goods(self, name, units, group):
+        groups = {'К': 1,
+                  'Б': 2,
+                  'Ц': 3}
         self._cursor.execute(
-            'INSERT INTO "main"."goods" (name, units, gr) VALUES ("{}", "{}", {})'.format(name, units, group))
+            'INSERT INTO "main"."goods" (name, units, gr) VALUES ("{}", "{}", {})'.format(name, units, groups[group]))
         self._db.commit()
 
     def add_many_to_goods(self, goods_list):
@@ -65,6 +68,7 @@ class DBHandler():
             self._db.commit()
 
         except sq.OperationalError as e:
+            print(e)
             self._current_order = new_order
             return self._current_order, False
 

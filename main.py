@@ -4,6 +4,7 @@ from config import TOKEN
 import logging
 from DbHandler import DBHandler
 import re
+from time import sleep
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -162,9 +163,9 @@ def product_handler(update, context):
     )
 
 
-def add_new_position(update, context, txt=''):
+def add_new_position(update, context):
     text = "Введите название позиции, через запятую введите единицы измерения:" \
-           " \nНапример: Куриное филе, кг." if txt == '' else txt
+           " \nНапример: Куриное филе, кг."
 
     buttons = [[
         InlineKeyboardButton("Назад",    callback_data=str(END))
@@ -178,11 +179,22 @@ def add_new_position(update, context, txt=''):
 
 def new_position_handler(update, context):
     data = update.message.text
-    print(dir(update))
-    print(dir(context))
-    context.bot.delete_message(update.message.chat_id, update.message.message_id)
+
     if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+,\s*[КЦБкцб]+\s*$', data) is not None:
-        add_new_position(update, context, data)
+        name, units, group = data.split(',')
+        try:
+            db.add_to_goods(name.strip(), units.strip(), group.strip())
+            context.bot.send_message (update.message.chat_id, 'Позиция "' + name.strip() + '" успешно добавлена')
+        except Exception as e:
+            print("Oopse, someth wrong \n" + e)
+
+            context.bot.send_message (update.message.chat_id, 'Произошла ошибка, обратитесь к разработчику')
+
+        # context.bot.delete_message(update.message.chat_id, update.message.message_id)
+    else:
+        context.bot.send_message(update.message.chat_id, 'Неверный ввод!')
+
+        context.bot.delete_message (update.message.chat_id, update.message.message_id, timeout=10)
 
 
 def stop(update, context):
