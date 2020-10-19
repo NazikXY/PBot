@@ -270,7 +270,6 @@ def new_position_handler(update, context):
         context.job_queue.run_once (message_deleter, DELETE_MESSAGE_PAUSE)
 
 
-
 def stop(update, context):
     pass
 
