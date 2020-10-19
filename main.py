@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 START, STOP = map(chr, range(2))
 SELECTING_PLACE, KITCHEN, BAR, ADD_NEW_POSITION, ADD = map(chr, range(2, 7))
 CREATING_ORDER, SENDING_ORDER, HISTORY, CHANGING_ORDER, CLOSING_ORDER, TYPING = map(chr, range(7, 13))
+DELETE_MESSAGE_PAUSE = 5
 
 db = DBHandler('bot.db')
 
@@ -174,27 +175,43 @@ def add_new_position(update, context):
 
     update.callback_query.answer()
     update.callback_query.edit_message_text(text=text, reply_markup=kb)
-    return TYPINGg
+    return TYPING
 
 
 def new_position_handler(update, context):
     data = update.message.text
+    print(dir(update))
+    print(dir(context))
 
     if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+,\s*[КЦБкцб]+\s*$', data) is not None:
         name, units, group = data.split(',')
         try:
             db.add_to_goods(name.strip(), units.strip(), group.strip())
-            context.bot.send_message (update.message.chat_id, 'Позиция "' + name.strip() + '" успешно добавлена')
+            s_mes = context.bot.send_message (update.message.chat_id, 'Позиция "' + name.strip() + '" успешно добавлена')
+
         except Exception as e:
-            print("Oopse, someth wrong \n" + e)
+            if str(e) == 'UNIQUE constraint failed: goods.name':
+                text = 'Ошибка.\nДанный товар уже присутствует в таблице'
+            else:
+                text = 'Произошла ошибка, обратитесь к разработчику'
+            print("Oopse, someth wrong \n" + str(e))
 
-            context.bot.send_message (update.message.chat_id, 'Произошла ошибка, обратитесь к разработчику')
+            s_mes = context.bot.send_message (update.message.chat_id, text)
 
-        # context.bot.delete_message(update.message.chat_id, update.message.message_id)
+        def message_deleter(cont) :
+            cont.bot.delete_message (update.message.chat_id, update.message.message_id)
+            cont.bot.delete_message (update.message.chat_id, s_mes['message_id'])
+
+        context.job_queue.run_once(message_deleter, DELETE_MESSAGE_PAUSE)
+
     else:
-        context.bot.send_message(update.message.chat_id, 'Неверный ввод!')
+        er_mes = context.bot.send_message(update.message.chat_id, 'Неверный ввод!')
 
-        context.bot.delete_message (update.message.chat_id, update.message.message_id, timeout=10)
+        def message_deleter(cont) :
+            cont.bot.delete_message (update.message.chat_id, update.message.message_id)
+            cont.bot.delete_message (update.message.chat_id, er_mes['message_id'])
+
+        context.job_queue.run_once (message_deleter, DELETE_MESSAGE_PAUSE)
 
 
 def stop(update, context):
