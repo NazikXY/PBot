@@ -5,7 +5,7 @@ from config import TOKEN
 import logging
 from DbHandler import DBHandler
 import re
-from time import sleep
+
 
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -238,9 +238,6 @@ def add_new_position(update, context):
 
 def new_position_handler(update, context):
     data = update.message.text
-    print(dir(update))
-    print(dir(context))
-
     if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+,\s*[КЦБкцб]+\s*$', data) is not None:
         name, units, group = data.split(',')
         try:
@@ -271,6 +268,7 @@ def new_position_handler(update, context):
             cont.bot.delete_message (update.message.chat_id, er_mes['message_id'])
 
         context.job_queue.run_once (message_deleter, DELETE_MESSAGE_PAUSE)
+
 
 
 def stop(update, context):
