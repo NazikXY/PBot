@@ -3,12 +3,12 @@ from datetime import datetime
 from pickle import dumps, loads
 from ast import literal_eval
 
-class DBHandler():
+
+class DBHandler:
     def __init__(self, db):
         self._db = sq.connect(db, check_same_thread=False)
         self._cursor = self._db.cursor()
         self._current_order = None
-
 
     def get_order_by_id(self, id):
         return self._cursor.execute("SELECT * FROM history WHERE order_id == {}".format(id)).fetchone()
@@ -31,7 +31,7 @@ class DBHandler():
                 print(e)
 
     def get_current_order(self):
-        return self._current_order, self._cursor.execute('SELECT * FROM "'+str(self._current_order)+'"').fetchall()
+        return self._current_order, self._cursor.execute('SELECT * FROM "' + str(self._current_order) + '"').fetchall()
 
     def add_to_goods(self, name, units, group):
         groups = {'К': 1,
@@ -46,10 +46,10 @@ class DBHandler():
         # TODO
 
     def get_goods_list(self, gr):
-        return self._cursor.execute('SELECT * FROM "goods" WHERE "gr" == {}'.format(gr)).fetchall()
+        return self._cursor.execute('SELECT * FROM "goods" WHERE "gr" == {} ORDER BY "goods"."name"'.format(gr)).fetchall()
 
     def get_goods_by_id(self, id):
-        return self._cursor.execute('SELECT * FROM "goods" WHERE "gid" == {}'.format(id)).fetchone()
+        return self._cursor.execute('SELECT * FROM "goods" goods.name WHERE "gid" == {}'.format(id)).fetchone()
 
     def get_goods_name_by_id(self, id):
         return self._cursor.execute('SELECT "name" FROM "goods" WHERE "gid" == {}'.format(id)).fetchone()[0]
@@ -126,6 +126,7 @@ def main():
     print(db.get_current_order())
     print(db.get_goods_name_by_id(2))
     print(db.add_to_goods("Мята", "п.", 2))
+
 
 if __name__ == "__main__":
     main()

@@ -13,11 +13,58 @@ logger = logging.getLogger(__name__)
 START, STOP = map(chr, range(2))
 SELECTING_PLACE, KITCHEN, BAR, ADD_NEW_POSITION, ADD = map(chr, range(2, 7))
 CREATING_ORDER, SENDING_ORDER, HISTORY, CHANGING_ORDER, CLOSING_ORDER, TYPING = map(chr, range(7, 13))
+END = ConversationHandler.END
+
 DELETE_MESSAGE_PAUSE = 5
 
 db = DBHandler('bot.db')
+print(dir(logger))
 
-END = ConversationHandler.END
+
+def text_order_list(ls, order) :
+
+    main_dict = {1: dict(), 2: dict(), 3: dict()}
+
+    for i in ls :
+        main_dict[i[3]][i[0]] = (i[1], i[2])
+    print(main_dict)
+
+    kitchen_txt = ''
+    bar_txt = ''
+    zeh_txt = ''
+
+    if order is not None:
+        for i in order:
+            if i[0] in main_dict[1].keys():
+                kitchen_txt += main_dict[1][i[0]][0] + ' ' + str(i[1]) + ' ' + main_dict[1][i[0]][1] + '\n'
+                # += main_dict[1]['names'][0] + ' ' + str(i[1]) + main_dict[1]['names'][1] + '\n'
+            if i[0] in main_dict[2].keys():
+                bar_txt += main_dict[2][i[0]][0] + ' ' + str(i[1]) + ' ' + main_dict[2][i[0]][1] + '\n'
+                # main_dict[2]['names'][0] + ' ' + str(i[1]) + main_dict[1]['names'][1] + '\n'
+            if i[0] in main_dict[3].keys():
+                zeh_txt += main_dict[3][i[0]][0] + ' ' + str(i[1]) + ' ' + main_dict[3][i[0]][1] + '\n'
+                # += main_dict[3]['names'][0] + ' ' + str(i[1]) + main_dict[1]['names'][1] + '\n'
+
+    def str_sort(st):
+        tmp = st.splitlines()
+        tmp.sort()
+        rs = ''
+        for line in tmp:
+            rs += line + '\n'
+        return rs
+
+    kitchen_txt = '**Кухня** \n\n' + str_sort(kitchen_txt)
+    bar_txt = '\n** Бар ** \n\n' + str_sort(bar_txt)
+    zeh_txt = '\n** Цех ** \n\n' + str_sort(zeh_txt)
+
+    result = kitchen_txt + bar_txt + zeh_txt
+
+    return result
+    #
+    # if order is not None :
+    #     for i in order :
+    #         txt += goods_dict[int(i[0])][0] + ' ' + str (i[1]) + ' ' + goods_dict[int (i[0])][1] + '\n'
+    # return txt
 
 
 def start(update, context):
@@ -35,22 +82,14 @@ def start(update, context):
                    ]]
         text = "Сейчас у вас нет заказа"
 
-    goods_list = db.get_goods_list(1)
-    goods_list += db.get_goods_list(2)
-    ids = []
-    names = []
-    for i in goods_list:
-        ids.append(int(i[0]))
-        names.append((i[1], i[2]))
-    goods_dict = dict(zip(ids, names))
-    txt = ''
-    if order is not None:
-        for i in order:
-            txt += goods_dict[int(i[0])][0] + ' ' + str(i[1]) + ' ' + goods_dict[int(i[0])][1] + '\n'
+    goods_list = db.get_goods_list(1) + db.get_goods_list(2) + db.get_goods_list(3)
 
-    text = txt + 'Ваш заказ: ' + text
+    all_text = text_order_list(goods_list, order)
+
+    text = all_text + 'Ваш заказ: ' + text
     kb = InlineKeyboardMarkup(places)
 
+    # если /start не в первый раз запукается, то отрабатывает try
     try:
         update.callback_query.answer()
         update.callback_query.edit_message_text(text, reply_markup=kb)
@@ -139,7 +178,6 @@ def select_kitchen(update, context):
 
     update.callback_query.answer()
     update.callback_query.edit_message_text("Заказ кухни: \n", reply_markup=kb)
-    # update.message.reply_text('choose goods', reply_markup=kb)
 
 
 def select_bar(update, context):
