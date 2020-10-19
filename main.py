@@ -1,5 +1,6 @@
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.error import BadRequest
 from config import TOKEN
 import logging
 from DbHandler import DBHandler
@@ -11,23 +12,20 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 START, STOP = map(chr, range(2))
-SELECTING_PLACE, KITCHEN, BAR, ADD_NEW_POSITION, ADD = map(chr, range(2, 7))
-CREATING_ORDER, SENDING_ORDER, HISTORY, CHANGING_ORDER, CLOSING_ORDER, TYPING = map(chr, range(7, 13))
+SELECTING_PLACE, KITCHEN, BAR, ZEH, ADD_NEW_POSITION, ADD = map(chr, range(2, 8))
+CREATING_ORDER, SENDING_ORDER, HISTORY, CHANGING_ORDER, CLOSING_ORDER, DELETING_ORDER, TYPING = map(chr, range(8, 15))
 END = ConversationHandler.END
 
 DELETE_MESSAGE_PAUSE = 5
 
 db = DBHandler('bot.db')
-print(dir(logger))
 
 
 def text_order_list(ls, order) :
-
     main_dict = {1: dict(), 2: dict(), 3: dict()}
 
     for i in ls :
         main_dict[i[3]][i[0]] = (i[1], i[2])
-    print(main_dict)
 
     kitchen_txt = ''
     bar_txt = ''
@@ -44,6 +42,8 @@ def text_order_list(ls, order) :
             if i[0] in main_dict[3].keys():
                 zeh_txt += main_dict[3][i[0]][0] + ' ' + str(i[1]) + ' ' + main_dict[3][i[0]][1] + '\n'
                 # += main_dict[3]['names'][0] + ' ' + str(i[1]) + main_dict[1]['names'][1] + '\n'
+    else:
+        return ''
 
     def str_sort(st):
         tmp = st.splitlines()
@@ -60,11 +60,6 @@ def text_order_list(ls, order) :
     result = kitchen_txt + bar_txt + zeh_txt
 
     return result
-    #
-    # if order is not None :
-    #     for i in order :
-    #         txt += goods_dict[int(i[0])][0] + ' ' + str (i[1]) + ' ' + goods_dict[int (i[0])][1] + '\n'
-    # return txt
 
 
 def start(update, context):
@@ -74,7 +69,9 @@ def start(update, context):
     if order_is_present:
         text, order = db.get_current_order()
         places = [[InlineKeyboardButton("Добавить продукты", callback_data=str(SELECTING_PLACE)),
-                   InlineKeyboardButton("Закрыть заказ", callback_data=str(CLOSING_ORDER))
+                   InlineKeyboardButton("Закрыть заказ", callback_data=str(CLOSING_ORDER)),
+                   InlineKeyboardButton("Удалить заказ", callback_data=str(DELETING_ORDER))
+
                    ]]
     else:
         places = [[InlineKeyboardButton("Создать заказ", callback_data=str(CREATING_ORDER)),
@@ -101,7 +98,8 @@ def start(update, context):
 
 def add_to_order(update, context):
     places = [[InlineKeyboardButton("Кухня", callback_data=str(KITCHEN)),
-               InlineKeyboardButton("Бар", callback_data=str(BAR))],
+               InlineKeyboardButton("Бар", callback_data=str(BAR)),
+               InlineKeyboardButton("Цех", callback_data=str(ZEH))],
               [InlineKeyboardButton('Назад', callback_data=str(END))]
               ]
     kb = InlineKeyboardMarkup(places)
@@ -127,6 +125,11 @@ def create_order(update, context):
     else:
         update.callback_query.edit_message_text(
             'Заказ успешно создан, название таблицы: ' + new_order[0], reply_markup=kb)
+
+
+def delete_order(update, context):
+    db.delete_order()
+    return start(update, context)
 
 
 def change_order(update, context):
@@ -171,6 +174,7 @@ def select_kitchen(update, context):
     for i in db.get_goods_list(1):
         goods.append([InlineKeyboardButton(i[1] + str(' + 1 ') + i[2], callback_data=str(i[0]))])
 
+    # TODO MAKE 2 COLUMNS OUTPUT
     goods.append([InlineKeyboardButton("Добавить позицию", callback_data=str(ADD_NEW_POSITION)+str(KITCHEN)),
                   InlineKeyboardButton("Назад", callback_data=str(END))])
 
@@ -192,19 +196,35 @@ def select_bar(update, context):
     update.callback_query.edit_message_text("Заказ бар: ", reply_markup=kb)
 
 
+def select_zeh(update, context):
+    goods = []
+    for i in db.get_goods_list(3):
+        goods.append ([InlineKeyboardButton (i[1] + str (' + 1 ') + i[2], callback_data=str (i[0]))])
+    goods.append ([InlineKeyboardButton ("Добавить позицию", callback_data=str (ADD_NEW_POSITION) + str (BAR)),
+                   InlineKeyboardButton ("Назад", callback_data=str (END))])
+    kb = InlineKeyboardMarkup (goods)
+
+    update.callback_query.answer ( )
+    update.callback_query.edit_message_text ("Заказ Цех: ", reply_markup=kb)
+
+
+
 def product_handler(update, context):
     db.add_to_order(gid=update.callback_query.data)
     current_product = db.get_goods_by_id(int(update.callback_query.data))
     update.callback_query.answer()
-    update.callback_query.edit_message_text(
-        '1 ' + current_product[2] + ' ' + current_product[1] + " добавлен в заказ",
-        reply_markup=update.callback_query.message['reply_markup']
-    )
+    try:
+        update.callback_query.edit_message_text(
+            '1 ' + current_product[2] + ' ' + current_product[1] + " добавлен в заказ",
+            reply_markup=update.callback_query.message['reply_markup']
+        )
+    except BadRequest as e:
+        print(e)
 
 
 def add_new_position(update, context):
-    text = "Введите название позиции, через запятую введите единицы измерения:" \
-           " \nНапример: Куриное филе, кг."
+    text = "Введите название позиции, через запятую введите единицы измерения, затем через запятую введите" \
+           " идентификатор(К - кухня, Ц - цех, или Б - бар)\nНапример: Куриное филе, кг., К"
 
     buttons = [[
         InlineKeyboardButton("Назад",    callback_data=str(END))
@@ -225,7 +245,8 @@ def new_position_handler(update, context):
         name, units, group = data.split(',')
         try:
             db.add_to_goods(name.strip(), units.strip(), group.strip())
-            s_mes = context.bot.send_message (update.message.chat_id, 'Позиция "' + name.strip() + '" успешно добавлена')
+            s_mes = context.bot.send_message (update.message.chat_id,
+                                              'Позиция "' + name.strip() + '" успешно добавлена')
 
         except Exception as e:
             if str(e) == 'UNIQUE constraint failed: goods.name':
@@ -275,6 +296,7 @@ def main():
         states={
             START: [CallbackQueryHandler(create_order, pattern='^'+str(CREATING_ORDER)+'$'),
                     CallbackQueryHandler(change_order, pattern='^'+str(CHANGING_ORDER)+'$'),
+                    CallbackQueryHandler(delete_order, pattern='^'+str(DELETING_ORDER)+'$'),
                     CallbackQueryHandler(choose_old_order, pattern='^'+str(CHANGING_ORDER)+'\d*$'),
                     CallbackQueryHandler(close_order,  pattern='^'+str(CLOSING_ORDER)+'$'),
                     CallbackQueryHandler(add_to_order, pattern='^'+str(SELECTING_PLACE)+'$'),
@@ -282,6 +304,7 @@ def main():
 
             SELECTING_PLACE: [CallbackQueryHandler(select_kitchen, pattern='^'+str(KITCHEN)+'$'),
                               CallbackQueryHandler(select_bar, pattern='^'+str(BAR)+'$'),
+                              CallbackQueryHandler(select_zeh, pattern='^'+str(ZEH)+'$'),
                               CallbackQueryHandler(start, pattern='^'+str(END)+'$'),
                               CallbackQueryHandler(product_handler, pattern='^\d*$'),
                               CallbackQueryHandler(
@@ -299,7 +322,6 @@ def main():
 
     updater.start_polling()
     updater.idle()
-# pattern='^\w*.\w*.\w*, \w*$'
 
 if __name__ == '__main__':
     main()

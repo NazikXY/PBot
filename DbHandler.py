@@ -1,7 +1,10 @@
+import pickle
 import sqlite3 as sq
 from datetime import datetime
-from pickle import dumps, loads
+# from pickle import dumps, loads
 from ast import literal_eval
+from sqlite3 import OperationalError
+from json import loads, dumps
 
 
 class DBHandler:
@@ -22,7 +25,19 @@ class DBHandler:
                 target_order = self._cursor.execute(
                     'SELECT * FROM history WHERE "order_id" == {}'.format(order_id)).fetchone()
                 self.create_order()
-                data = loads(literal_eval(target_order[2]))
+                try:
+
+                    try:  # is json data try
+                        data = loads(target_order[2])
+                    except Exception as e:
+                        print(e)  # pickled writes
+                        data = pickle.loads(literal_eval(target_order[2]))
+
+                except Exception as e:
+                    print(e)
+                    data = pickle.loads(literal_eval(target_order[2]))
+                    print ('Histroy str was pickled, not json')
+
                 for i in data:
                     self._cursor.execute(
                         'INSERT INTO "{}" ("goods_id", "count") VALUES ({},{})'.format(self._current_order, i[0], i[1]))
@@ -49,7 +64,7 @@ class DBHandler:
         return self._cursor.execute('SELECT * FROM "goods" WHERE "gr" == {} ORDER BY "goods"."name"'.format(gr)).fetchall()
 
     def get_goods_by_id(self, id):
-        return self._cursor.execute('SELECT * FROM "goods" goods.name WHERE "gid" == {}'.format(id)).fetchone()
+        return self._cursor.execute('SELECT * FROM "goods" WHERE "gid" == {}'.format(id)).fetchone()
 
     def get_goods_name_by_id(self, id):
         return self._cursor.execute('SELECT "name" FROM "goods" WHERE "gid" == {}'.format(id)).fetchone()[0]
@@ -107,17 +122,30 @@ class DBHandler:
 
     def close_order(self):
         if self._current_order is not None:
+
+            order = self._cursor.execute('SELECT * FROM "' + str(self._current_order)+'"').fetchall()
+            dumped_order = dumps(order)
             try:
-                order = self._cursor.execute('SELECT * FROM "' + str(self._current_order)+'"').fetchall()
-                dumped_order = dumps(order)
-                self._cursor.execute('INSERT INTO history ("time", value) VALUES ("' + str(self._current_order) +
-                                     '", "'+str(dumped_order)+'");')
-                self._db.commit()
-                self._cursor.execute('DROP TABLE "'+self._current_order+'";')
-                self._db.commit()
-                self._current_order = None
-            except Exception as e:
-                print(e)
+                self._cursor.execute('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format(
+                    str(self._current_order),
+                    str(dumped_order)))
+            except OperationalError:
+                dumped_order = str(dumped_order).replace('K"K', 'K\"K')
+                print(dumped_order)
+                self._cursor.execute ('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format (
+                    str (self._current_order),
+                    str (dumped_order)))
+                pass
+            self._db.commit()
+            self._cursor.execute('DROP TABLE "'+self._current_order+'";')
+            self._db.commit()
+            self._current_order = None
+
+    def delete_order(self):
+        if self.order_is_present():
+            self._cursor.execute ('DROP TABLE "' + self._current_order + '";')
+            self._db.commit ( )
+            self._current_order = None
 
 
 def main():
