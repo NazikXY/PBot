@@ -1,7 +1,9 @@
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
-from config import TOKEN
+from auth import TOKEN
+from config import *
+from reporting import *
 import logging
 from DbHandler import DBHandler
 import re
@@ -11,15 +13,24 @@ import re
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-START, STOP = map(chr, range(2))
-SELECTING_PLACE, KITCHEN, BAR, ZEH, ADD_NEW_POSITION, ADD = map(chr, range(2, 8))
-CREATING_ORDER, SENDING_ORDER, HISTORY, CHANGING_ORDER, CLOSING_ORDER, DELETING_ORDER, TYPING = map(chr, range(8, 15))
-END = ConversationHandler.END
-
-DELETE_MESSAGE_PAUSE = 5
 
 db = DBHandler('bot.db')
 
+
+def start(update, context):
+    text = 'Что будете делать?'
+    buttons = [[InlineKeyboardButton('Отчетность', callback_data=str(REPORTING)),
+                InlineKeyboardButton('Базар', callback_data=str(ORDERS_START))]]
+    kb = InlineKeyboardMarkup(buttons)
+
+    # если /start не в первый раз запукается, то отрабатывает try
+    try:
+        update.callback_query.answer()
+        update.callback_query.edit_message_text(text, reply_markup=kb)
+    except Exception as e:
+        update.message.reply_text(text, reply_markup=kb)
+
+    return START
 
 def text_order_list(ls, order) :
     main_dict = {1: dict(), 2: dict(), 3: dict()}
@@ -62,21 +73,21 @@ def text_order_list(ls, order) :
     return result
 
 
-def start(update, context):
+def orders_start(update, context):
 
     order_is_present = db.order_is_present()
     order = None
     if order_is_present:
         text, order = db.get_current_order()
-        places = [[InlineKeyboardButton("Добавить продукты", callback_data=str(SELECTING_PLACE)),
-                   InlineKeyboardButton("Закрыть заказ", callback_data=str(CLOSING_ORDER)),
-                   InlineKeyboardButton("Удалить заказ", callback_data=str(DELETING_ORDER))
-
-                   ]]
+        places = [[InlineKeyboardButton("Закрыть заказ", callback_data=str(CLOSING_ORDER)),
+                   InlineKeyboardButton("Удалить заказ", callback_data=str(DELETING_ORDER))],
+                  [InlineKeyboardButton("Добавить продукты", callback_data=str(SELECTING_PLACE))],
+                  [InlineKeyboardButton("Назад", callback_data=str(START))]]
     else:
         places = [[InlineKeyboardButton("Создать заказ", callback_data=str(CREATING_ORDER)),
                    InlineKeyboardButton("Выбрать из истории", callback_data=str(CHANGING_ORDER))
-                   ]]
+                   ],
+                  [InlineKeyboardButton("Назад", callback_data=str(START))]]
         text = "Сейчас у вас нет заказа"
 
     goods_list = db.get_goods_list(1) + db.get_goods_list(2) + db.get_goods_list(3)
@@ -93,7 +104,7 @@ def start(update, context):
     except Exception as e:
         update.message.reply_text(text, reply_markup=kb)
 
-    return START
+    return ORDERS_START
 
 
 def add_to_order(update, context):
@@ -129,7 +140,7 @@ def create_order(update, context):
 
 def delete_order(update, context):
     db.delete_order()
-    return start(update, context)
+    return orders_start(update, context)
 
 
 def change_order(update, context):
@@ -148,7 +159,7 @@ def choose_old_order(update, context):
     db.set_current_order_from_history(int(update.callback_query.data))
 
     update.callback_query.answer()
-    return start(update, context)
+    return orders_start(update, context)
 
 
 def close_order(update, context):
@@ -161,7 +172,7 @@ def close_order(update, context):
     update.callback_query.answer()
     update.callback_query.edit_message_text(text='Ваш заказ успешно закрыт, наверное', reply_markup=kb)
 
-    return START
+    return ORDERS_START
 
 
 def send_order(update, context):
@@ -235,7 +246,6 @@ def select_zeh(update, context):
 
     update.callback_query.answer ( )
     update.callback_query.edit_message_text ("Заказ Цех: ", reply_markup=kb)
-
 
 
 def product_handler(update, context):
@@ -320,18 +330,30 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            START: [CallbackQueryHandler(create_order, pattern='^'+str(CREATING_ORDER)+'$'),
-                    CallbackQueryHandler(change_order, pattern='^'+str(CHANGING_ORDER)+'$'),
-                    CallbackQueryHandler(delete_order, pattern='^'+str(DELETING_ORDER)+'$'),
-                    CallbackQueryHandler(choose_old_order, pattern='^'+str(CHANGING_ORDER)+'\d*$'),
-                    CallbackQueryHandler(close_order,  pattern='^'+str(CLOSING_ORDER)+'$'),
-                    CallbackQueryHandler(add_to_order, pattern='^'+str(SELECTING_PLACE)+'$'),
-                    CallbackQueryHandler(start,        pattern='^'+str(END)+'$')],
+            START: [CallbackQueryHandler(orders_start,              pattern='^'+str(ORDERS_START)+'$'),
+                    CallbackQueryHandler(reporting,                 pattern='^'+str(REPORTING)+'$')],
 
-            SELECTING_PLACE: [CallbackQueryHandler(select_kitchen, pattern='^'+str(KITCHEN)+'$'),
-                              CallbackQueryHandler(select_bar, pattern='^'+str(BAR)+'$'),
-                              CallbackQueryHandler(select_zeh, pattern='^'+str(ZEH)+'$'),
-                              CallbackQueryHandler(start, pattern='^'+str(END)+'$'),
+            REPORTING: [CallbackQueryHandler(get_report,            pattern='^'+str(GET_REPORT)+'$'),
+                        CallbackQueryHandler(get_report_xlsx,       pattern='^'+str(GET_REPORT_XLSX)+'$'),
+                        CallbackQueryHandler(reporting,             pattern='^'+str(REPORTING)+'$'),
+                        CallbackQueryHandler (deep_report,          pattern='^' + str (KITCHEN_REPORT) +
+                                                                            '|' + str(BAR_REPORT) +
+                                                                            '|' + str(ZEH_REPORT) + '$'),
+                        CallbackQueryHandler(start,                 pattern='^'+str(START)+'$')],
+
+            ORDERS_START: [CallbackQueryHandler(create_order,       pattern='^'+str(CREATING_ORDER)+'$'),
+                           CallbackQueryHandler(change_order,       pattern='^'+str(CHANGING_ORDER)+'$'),
+                           CallbackQueryHandler(delete_order,       pattern='^'+str(DELETING_ORDER)+'$'),
+                           CallbackQueryHandler(choose_old_order,   pattern='^'+str(CHANGING_ORDER)+'\d*$'),
+                           CallbackQueryHandler(close_order,        pattern='^'+str(CLOSING_ORDER)+'$'),
+                           CallbackQueryHandler(add_to_order,       pattern='^'+str(SELECTING_PLACE)+'$'),
+                           CallbackQueryHandler(start,              pattern='^'+str(START)+'$'),
+                           CallbackQueryHandler(orders_start,       pattern='^'+str(END)+'$')],
+
+            SELECTING_PLACE: [CallbackQueryHandler(select_kitchen,  pattern='^'+str(KITCHEN)+'$'),
+                              CallbackQueryHandler(select_bar,      pattern='^'+str(BAR)+'$'),
+                              CallbackQueryHandler(select_zeh,      pattern='^'+str(ZEH)+'$'),
+                              CallbackQueryHandler(orders_start,    pattern='^'+str(END)+'$'),
                               CallbackQueryHandler(product_handler, pattern='^\d*$'),
                               CallbackQueryHandler(
                                   add_new_position, pattern='^'+str(ADD_NEW_POSITION)+str(KITCHEN) +
