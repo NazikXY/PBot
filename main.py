@@ -169,12 +169,45 @@ def send_order(update, context):
     # TODO
 
 
-def select_kitchen(update, context):
-    goods = []
-    for i in db.get_goods_list(1):
-        goods.append([InlineKeyboardButton(i[1] + str(' + 1 ') + i[2], callback_data=str(i[0]))])
+def make_pairlist_from_list(gl):
+    f = []
+    s = []
+    flag = 0
+    res = []
+    for i in gl :
+        if flag :
+            f.append (i)
+            flag = 0
+        else :
+            s.append (i)
+            flag = 1
+    while True :
+        if len (f) + len (s) <= 0 :
+            break
+        tmp = []
+        if len (f) > 0 :
+            tmp.append (f.pop ( ))
+        if len (s) > 0 :
+            tmp.append (s.pop ( ))
+        res.append (tmp)
+    return res
 
-    # TODO MAKE 2 COLUMNS OUTPUT
+
+def make_goods_buttons(num):
+    goods = []
+    gl = db.get_goods_list (num)
+    res = make_pairlist_from_list (gl)
+    for pair in res :
+        IKB_pair = []
+        for item in pair :
+            IKB_pair.append (InlineKeyboardButton (item[1] + str (' + 1 ') + item[2], callback_data=str (item[0])))
+        goods.append (IKB_pair)
+    return goods
+
+
+def select_kitchen(update, context):
+    goods = make_goods_buttons(1)
+
     goods.append([InlineKeyboardButton("Добавить позицию", callback_data=str(ADD_NEW_POSITION)+str(KITCHEN)),
                   InlineKeyboardButton("Назад", callback_data=str(END))])
 
@@ -185,9 +218,7 @@ def select_kitchen(update, context):
 
 
 def select_bar(update, context):
-    goods = []
-    for i in db.get_goods_list(2):
-        goods.append([InlineKeyboardButton(i[1] + str(' + 1 ') + i[2], callback_data=str(i[0]))])
+    goods = make_goods_buttons(2)
     goods.append([InlineKeyboardButton("Добавить позицию", callback_data=str(ADD_NEW_POSITION)+str(BAR)),
                   InlineKeyboardButton("Назад", callback_data=str(END))])
     kb = InlineKeyboardMarkup(goods)
@@ -197,9 +228,7 @@ def select_bar(update, context):
 
 
 def select_zeh(update, context):
-    goods = []
-    for i in db.get_goods_list(3):
-        goods.append ([InlineKeyboardButton (i[1] + str (' + 1 ') + i[2], callback_data=str (i[0]))])
+    goods = make_goods_buttons(3)
     goods.append ([InlineKeyboardButton ("Добавить позицию", callback_data=str (ADD_NEW_POSITION) + str (BAR)),
                    InlineKeyboardButton ("Назад", callback_data=str (END))])
     kb = InlineKeyboardMarkup (goods)
