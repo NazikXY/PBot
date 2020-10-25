@@ -144,11 +144,11 @@ def delete_order(update, context):
     return orders_start(update, context)
 
 
-def add_to_order(update, context):
+def change_order(update, context):
     order_list = db.get_order_list()
     orders = []
     for i in order_list:
-        orders.append([InlineKeyboardButton(str(i[0]) + ' ' + i[1], callback_data=str(ADD_TO_ORDER) + str(i[0]))])
+        orders.append([InlineKeyboardButton(str(i[0]) + ' ' + i[1], callback_data=str(CHANGE_ORDER) + str(i[0]))])
     orders.append([InlineKeyboardButton('Назад', callback_data=str(END))])
     kb = InlineKeyboardMarkup(orders)
 
@@ -338,17 +338,17 @@ def main():
             REPORTING: [CallbackQueryHandler(get_report,            pattern='^'+str(GET_REPORT)+'$'),
                         CallbackQueryHandler(get_report_xlsx,       pattern='^'+str(GET_REPORT_XLSX)+'$'),
                         CallbackQueryHandler(reporting,             pattern='^'+str(REPORTING)+'$'),
-                        CallbackQueryHandler (deep_report,          pattern='^' + str (KITCHEN_REPORT) +
+                        CallbackQueryHandler(deep_report,          pattern='^' + str (KITCHEN_REPORT) +
                                                                             '|' + str(BAR_REPORT) +
                                                                             '|' + str(ZEH_REPORT) + '$'),
                         CallbackQueryHandler(start,                 pattern='^'+str(START)+'$')],
 
             ORDERS_START: [CallbackQueryHandler(create_order,       pattern='^'+str(CREATING_ORDER)+'$'),
-                           CallbackQueryHandler(add_to_order, pattern='^' + str(ADD_TO_ORDER) + '$'),
+                           CallbackQueryHandler(change_order, pattern='^' + str(CHANGE_ORDER) + '$'),
                            CallbackQueryHandler(delete_order,       pattern='^'+str(DELETING_ORDER)+'$'),
-                           CallbackQueryHandler(choose_old_order, pattern='^' + str(HISTORY) + '\d*$'),
+                           CallbackQueryHandler(choose_old_order, pattern='^' + str(CHANGE_ORDER) + '\d*$'),
                            CallbackQueryHandler(close_order,        pattern='^'+str(CLOSING_ORDER)+'$'),
-                           CallbackQueryHandler(add_to_order,       pattern='^'+str(SELECTING_PLACE)+'$'),
+                           CallbackQueryHandler(add_to_order, pattern='^' + str(SELECTING_PLACE) + '$'),
                            CallbackQueryHandler(start,              pattern='^'+str(START)+'$'),
                            CallbackQueryHandler(orders_start,       pattern='^'+str(END)+'$')],
 
@@ -362,7 +362,7 @@ def main():
                                                             '|'+str(ADD_NEW_POSITION)+str(BAR)+'$')
                               ],
             TYPING: [MessageHandler(Filters.text & ~Filters.command, new_position_handler),
-                     CallbackQueryHandler(add_to_order, pattern='^'+str(END)+'$')]
+                     CallbackQueryHandler(change_order, pattern='^' + str(END) + '$')]
         },
         fallbacks=[CommandHandler("stop", stop)]
     )
