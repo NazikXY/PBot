@@ -82,11 +82,11 @@ def orders_start(update, context):
         places = [[InlineKeyboardButton("Добавить продукты", callback_data=str(SELECTING_PLACE))],
                   [InlineKeyboardButton("Закрыть", callback_data=str(CLOSING_ORDER)),
                    InlineKeyboardButton("Удалить", callback_data=str(DELETING_ORDER)),
-                   InlineKeyboardButton("Изменить", callback_data=str(DELETING_ORDER))],
+                   InlineKeyboardButton("Изменить", callback_data=str(START))],
                   [InlineKeyboardButton("Назад", callback_data=str(START))]]
     else:
         places = [[InlineKeyboardButton("Создать заказ", callback_data=str(CREATING_ORDER)),
-                   InlineKeyboardButton("Выбрать из истории", callback_data=str(ADD_TO_ORDER))
+                   InlineKeyboardButton("Выбрать из истории", callback_data=str(HISTORY))
                    ],
                   [InlineKeyboardButton("Назад", callback_data=str(START))]]
         text = "Сейчас у вас нет заказа"
@@ -346,7 +346,7 @@ def main():
             ORDERS_START: [CallbackQueryHandler(create_order,       pattern='^'+str(CREATING_ORDER)+'$'),
                            CallbackQueryHandler(add_to_order, pattern='^' + str(ADD_TO_ORDER) + '$'),
                            CallbackQueryHandler(delete_order,       pattern='^'+str(DELETING_ORDER)+'$'),
-                           CallbackQueryHandler(choose_old_order, pattern='^' + str(ADD_TO_ORDER) + '\d*$'),
+                           CallbackQueryHandler(choose_old_order, pattern='^' + str(HISTORY) + '\d*$'),
                            CallbackQueryHandler(close_order,        pattern='^'+str(CLOSING_ORDER)+'$'),
                            CallbackQueryHandler(add_to_order,       pattern='^'+str(SELECTING_PLACE)+'$'),
                            CallbackQueryHandler(start,              pattern='^'+str(START)+'$'),
