@@ -12,7 +12,7 @@ def reporting(update, context):
     buttons = [[InlineKeyboardButton("Кухня", callback_data=str(KITCHEN_REPORT)),
                 InlineKeyboardButton("Бар", callback_data=str(BAR_REPORT)),
                 InlineKeyboardButton("Цех", callback_data=str(ZEH_REPORT))],
-               [InlineKeyboardButton ("Получить отчет в .xlsx", callback_data=str (GET_REPORT_XLSX))],
+               [InlineKeyboardButton ("Получить отчет в .xlsx", callback_data=str(GET_REPORT_XLSX))],
                [InlineKeyboardButton("Назад", callback_data=str(START))]]
     kb = InlineKeyboardMarkup(buttons)
 

@@ -79,13 +79,14 @@ def orders_start(update, context):
     order = None
     if order_is_present:
         text, order = db.get_current_order()
-        places = [[InlineKeyboardButton("Закрыть заказ", callback_data=str(CLOSING_ORDER)),
-                   InlineKeyboardButton("Удалить заказ", callback_data=str(DELETING_ORDER))],
-                  [InlineKeyboardButton("Добавить продукты", callback_data=str(SELECTING_PLACE))],
+        places = [[InlineKeyboardButton("Добавить продукты", callback_data=str(SELECTING_PLACE))],
+                  [InlineKeyboardButton("Закрыть", callback_data=str(CLOSING_ORDER)),
+                   InlineKeyboardButton("Удалить", callback_data=str(DELETING_ORDER)),
+                   InlineKeyboardButton("Изменить", callback_data=str(DELETING_ORDER))],
                   [InlineKeyboardButton("Назад", callback_data=str(START))]]
     else:
         places = [[InlineKeyboardButton("Создать заказ", callback_data=str(CREATING_ORDER)),
-                   InlineKeyboardButton("Выбрать из истории", callback_data=str(CHANGING_ORDER))
+                   InlineKeyboardButton("Выбрать из истории", callback_data=str(ADD_TO_ORDER))
                    ],
                   [InlineKeyboardButton("Назад", callback_data=str(START))]]
         text = "Сейчас у вас нет заказа"
@@ -143,16 +144,17 @@ def delete_order(update, context):
     return orders_start(update, context)
 
 
-def change_order(update, context):
+def add_to_order(update, context):
     order_list = db.get_order_list()
     orders = []
     for i in order_list:
-        orders.append([InlineKeyboardButton(str(i[0]) + ' ' + i[1], callback_data=str(CHANGING_ORDER)+str(i[0]))])
+        orders.append([InlineKeyboardButton(str(i[0]) + ' ' + i[1], callback_data=str(ADD_TO_ORDER) + str(i[0]))])
     orders.append([InlineKeyboardButton('Назад', callback_data=str(END))])
     kb = InlineKeyboardMarkup(orders)
 
     update.callback_query.answer()
     update.callback_query.edit_message_text("Прошлые заказы: ", reply_markup=kb)
+
 
 
 def choose_old_order(update, context):
@@ -342,9 +344,9 @@ def main():
                         CallbackQueryHandler(start,                 pattern='^'+str(START)+'$')],
 
             ORDERS_START: [CallbackQueryHandler(create_order,       pattern='^'+str(CREATING_ORDER)+'$'),
-                           CallbackQueryHandler(change_order,       pattern='^'+str(CHANGING_ORDER)+'$'),
+                           CallbackQueryHandler(add_to_order, pattern='^' + str(ADD_TO_ORDER) + '$'),
                            CallbackQueryHandler(delete_order,       pattern='^'+str(DELETING_ORDER)+'$'),
-                           CallbackQueryHandler(choose_old_order,   pattern='^'+str(CHANGING_ORDER)+'\d*$'),
+                           CallbackQueryHandler(choose_old_order, pattern='^' + str(ADD_TO_ORDER) + '\d*$'),
                            CallbackQueryHandler(close_order,        pattern='^'+str(CLOSING_ORDER)+'$'),
                            CallbackQueryHandler(add_to_order,       pattern='^'+str(SELECTING_PLACE)+'$'),
                            CallbackQueryHandler(start,              pattern='^'+str(START)+'$'),
