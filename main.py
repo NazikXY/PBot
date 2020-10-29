@@ -167,6 +167,7 @@ def choose_old_order(update, context):
 def close_order(update, context):
     db.close_order()
     buttons = [[InlineKeyboardButton("Окей", callback_data=str(END))]]
+
     kb = InlineKeyboardMarkup(buttons)
 
     db.close_order()
