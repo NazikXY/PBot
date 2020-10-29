@@ -130,8 +130,6 @@ class DBHandler:
                     str(self._current_order),
                     str(dumped_order)))
             except OperationalError:
-                dumped_order = str(dumped_order).replace('K"K', 'K\"K')
-                print(dumped_order)
                 self._cursor.execute ('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format (
                     str (self._current_order),
                     str (dumped_order)))

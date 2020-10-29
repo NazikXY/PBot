@@ -148,7 +148,7 @@ def change_order(update, context):
     order_list = db.get_order_list()
     orders = []
     for i in order_list:
-        orders.append([InlineKeyboardButton(str(i[0]) + ' ' + i[1], callback_data=str(CHANGE_ORDER) + str(i[0]))])
+        orders.append([InlineKeyboardButton(str(i[0]) + ' ' + i[1], callback_data=str(HISTORY) + str(i[0]))])
     orders.append([InlineKeyboardButton('Назад', callback_data=str(END))])
     kb = InlineKeyboardMarkup(orders)
 
@@ -188,20 +188,20 @@ def make_pairlist_from_list(gl):
     s = []
     flag = 0
     res = []
-    for i in gl :
-        if flag :
-            f.append (i)
+    for i in gl:
+        if flag:
+            f.append(i)
             flag = 0
-        else :
-            s.append (i)
+        else:
+            s.append(i)
             flag = 1
-    while True :
-        if len (f) + len (s) <= 0 :
+    while True:
+        if len(f) + len(s) <= 0:
             break
         tmp = []
-        if len (f) > 0 :
-            tmp.append (f.pop ( ))
-        if len (s) > 0 :
+        if len(f) > 0:
+            tmp.append(f.pop())
+        if len (s) > 0:
             tmp.append (s.pop ( ))
         res.append (tmp)
     return res
@@ -345,9 +345,9 @@ def main():
                         CallbackQueryHandler(start,                 pattern='^'+str(START)+'$')],
 
             ORDERS_START: [CallbackQueryHandler(create_order,       pattern='^'+str(CREATING_ORDER)+'$'),
-                           CallbackQueryHandler(change_order, pattern='^' + str(CHANGE_ORDER) + '$'),
+                           CallbackQueryHandler(change_order, pattern='^' + str(HISTORY) + '$'),
                            CallbackQueryHandler(delete_order,       pattern='^'+str(DELETING_ORDER)+'$'),
-                           CallbackQueryHandler(choose_old_order, pattern='^' + str(CHANGE_ORDER) + '\d*$'),
+                           CallbackQueryHandler(choose_old_order, pattern='^' + str(HISTORY) + '\d*$'),
                            CallbackQueryHandler(close_order,        pattern='^'+str(CLOSING_ORDER)+'$'),
                            CallbackQueryHandler(add_to_order, pattern='^' + str(SELECTING_PLACE) + '$'),
                            CallbackQueryHandler(start,              pattern='^'+str(START)+'$'),
@@ -363,7 +363,7 @@ def main():
                                                             '|'+str(ADD_NEW_POSITION)+str(BAR)+'$')
                               ],
             TYPING: [MessageHandler(Filters.text & ~Filters.command, new_position_handler),
-                     CallbackQueryHandler(change_order, pattern='^' + str(END) + '$')]
+                     CallbackQueryHandler(add_to_order, pattern='^' + str(END) + '$')]
         },
         fallbacks=[CommandHandler("stop", stop)]
     )
