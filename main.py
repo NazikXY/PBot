@@ -1,3 +1,6 @@
+from threading import Thread
+from time import sleep
+
 from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, ConversationHandler, MessageHandler, Filters
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import BadRequest
@@ -17,11 +20,19 @@ logger = logging.getLogger(__name__)
 db = DBHandler('bot.db')
 
 
+def hidden_process():
+    while True:
+        db.close_old_order()
+        sleep(3)
+
+
 def start(update, context):
     text = 'Что будете делать?'
     buttons = [[InlineKeyboardButton('Отчетность', callback_data=str(REPORTING)),
                 InlineKeyboardButton('Базар', callback_data=str(ORDERS_START))]]
     kb = InlineKeyboardMarkup(buttons)
+    Thread(target=hidden_process, daemon=True).start()
+
 
     # если /start не в первый раз запукается, то отрабатывает try
     try:

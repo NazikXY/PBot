@@ -1,6 +1,6 @@
 import pickle
 import sqlite3 as sq
-from datetime import datetime
+from datetime import datetime, timedelta
 # from pickle import dumps, loads
 from ast import literal_eval
 from sqlite3 import OperationalError
@@ -73,6 +73,7 @@ class DBHandler:
         if self._current_order is not None:
             return self._current_order, False
 
+
         date = datetime.today().date()
         new_order = 'order_' + str(date)
 
@@ -90,9 +91,10 @@ class DBHandler:
         self._current_order = new_order
         return new_order, True
 
-    def order_is_present(self):
+    def order_is_present(self, other_order=None):
+        target_order = 'order_'+str(datetime.today().date()) if other_order is None else other_order
         tables = self._cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
-        if ('order_'+str(datetime.today().date()),) in tables:
+        if (target_order,) in tables:
             if self._current_order is None:
                 self._current_order = 'order_'+str(datetime.today().date())
             return True
@@ -120,22 +122,24 @@ class DBHandler:
             )
             self._db.commit()
 
-    def close_order(self):
+    def close_order(self, other_order=None):
+        target_order = self._current_order if other_order is None else other_order
+
         if self._current_order is not None:
 
-            order = self._cursor.execute('SELECT * FROM "' + str(self._current_order)+'"').fetchall()
+            order = self._cursor.execute('SELECT * FROM "' + str(target_order)+'"').fetchall()
             dumped_order = dumps(order)
             try:
                 self._cursor.execute('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format(
-                    str(self._current_order),
+                    str(target_order),
                     str(dumped_order)))
             except OperationalError:
                 self._cursor.execute ('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format (
-                    str (self._current_order),
+                    str (target_order),
                     str (dumped_order)))
                 pass
             self._db.commit()
-            self._cursor.execute('DROP TABLE "'+self._current_order+'";')
+            self._cursor.execute('DROP TABLE "'+target_order+'";')
             self._db.commit()
             self._current_order = None
 
@@ -144,6 +148,37 @@ class DBHandler:
             self._cursor.execute ('DROP TABLE "' + self._current_order + '";')
             self._db.commit ( )
             self._current_order = None
+
+    def close_old_order(self):
+        if self._current_order is None:
+            return
+
+        def last_day_of_month(any_day) :
+            next_month = any_day.replace (day=28) + timedelta (days=4)
+            return next_month - timedelta (days=next_month.day)
+
+        def get_yesterday(today) :
+            if today.day == 1 :
+                if today.month == 1 :
+                    tomorrow_month = 12
+                    tomorrow_year = today.year - 1
+                else :
+                    tomorrow_month = today.month - 1
+                    tomorrow_year = today.year
+                tomorrow_day = last_day_of_month (today).day
+            else :
+                tomorrow_month = today.month
+                tomorrow_year = today.year
+                tomorrow_day = today.day - 1
+
+            return datetime.strptime (str (tomorrow_day) + '.' + str (tomorrow_month) + '.' + str (tomorrow_year),
+                                      '%d.%m.%Y').date()
+
+        old_order = 'order_' + str(get_yesterday(datetime.now().date()))
+        # print(old_order)
+        # print(self._current_order)
+        if self.order_is_present(old_order):
+            self.close_order(old_order)
 
 
 def main():
