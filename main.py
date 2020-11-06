@@ -96,8 +96,7 @@ def orders_start(update, context):
         text, order = db.get_current_order()
         places = [[InlineKeyboardButton("Добавить продукты", callback_data=str(SELECTING_PLACE))],
                   [InlineKeyboardButton("Закрыть", callback_data=str(CLOSING_ORDER)),
-                   InlineKeyboardButton("Удалить", callback_data=str(DELETING_ORDER)),
-                   InlineKeyboardButton("Изменить", callback_data=str(START))],
+                   InlineKeyboardButton("Удалить", callback_data=str(DELETING_ORDER))],
                   [InlineKeyboardButton("Назад", callback_data=str(START))]]
     else:
         places = [[InlineKeyboardButton("Создать заказ", callback_data=str(CREATING_ORDER)),
