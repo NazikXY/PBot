@@ -33,6 +33,8 @@ def hidden_process():
 def start(update, context):
     text = 'Что будете делать?'
     buttons = [[InlineKeyboardButton('Отчетность', callback_data=str(REPORTING)),
+                InlineKeyboardButton ('Приход', callback_data=str (REPORTING)),
+                InlineKeyboardButton ('Списание', callback_data=str (REPORTING)),
                 InlineKeyboardButton('Базар', callback_data=str(ORDERS_START))]]
     kb = InlineKeyboardMarkup(buttons)
     Thread(target=hidden_process, daemon=True).start()

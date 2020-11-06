@@ -55,7 +55,7 @@ def deep_report(update, context):
     def message_deleter(cont) :
         cont.bot.delete_message (update.callback_query.message.chat_id, doc['message_id'])
 
-    context.job_queue.run_once (message_deleter, DELETE_MESSAGE_PAUSE)
+    context.job_queue.run_once (message_deleter, DELETE_MESSAGE_PAUSE+5)
 
     update.callback_query.answer()
 
