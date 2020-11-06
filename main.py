@@ -270,8 +270,6 @@ def select_zeh(update, context):
 
 
 def product_handler(update, context):
-    # db.add_to_order(gid=update.callback_query.data)
-    # current_product = db.get_goods_by_id(int(update.callback_query.data))
     Holder.product = update.callback_query.data
     buttons = [[InlineKeyboardButton("Назад", callback_data=str(END))]]
     kb = InlineKeyboardMarkup(buttons)
@@ -281,9 +279,8 @@ def product_handler(update, context):
     try:
         current_product = db.get_goods_by_id (int (Holder.product))
         update.callback_query.edit_message_text(
-            # '1 ' + current_product[2] + ' ' + current_product[1] + " добавлен в заказ",
-            # reply_markup=update.callback_query.message['reply_markup']
-            "Введите сколько {} {} нужно добавить\nЧто бы уменьшить количество напишите чило с минусом ( -5, -7)".format(current_product[2] , current_product[1]), reply_markup=kb)
+            "Введите сколько {} {} нужно добавить\nЧто бы уменьшить количество напишите чило с минусом ( -5, -7)"
+                .format(current_product[2] , current_product[1]), reply_markup=kb)
     except Exception as e:
         print(e)
 
