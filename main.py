@@ -19,11 +19,15 @@ logger = logging.getLogger(__name__)
 
 db = DBHandler('bot.db')
 
+class Holder:
+    place = None
+    product = None
+
 
 def hidden_process():
     while True:
         db.close_old_order()
-        sleep(3)
+        sleep(60)
 
 
 def start(update, context):
@@ -225,12 +229,13 @@ def make_goods_buttons(num):
     for pair in res :
         IKB_pair = []
         for item in pair :
-            IKB_pair.append (InlineKeyboardButton (item[1] + str (' + 1 ') + item[2], callback_data=str (item[0])))
+            IKB_pair.append (InlineKeyboardButton (item[1], callback_data=str(item[0])))
         goods.append (IKB_pair)
     return goods
 
 
 def select_kitchen(update, context):
+    Holder.place = KITCHEN
     goods = make_goods_buttons(1)
 
     goods.append([InlineKeyboardButton("Добавить позицию", callback_data=str(ADD_NEW_POSITION)+str(KITCHEN)),
@@ -243,6 +248,7 @@ def select_kitchen(update, context):
 
 
 def select_bar(update, context):
+    Holder.place = BAR
     goods = make_goods_buttons(2)
     goods.append([InlineKeyboardButton("Добавить позицию", callback_data=str(ADD_NEW_POSITION)+str(BAR)),
                   InlineKeyboardButton("Назад", callback_data=str(END))])
@@ -253,31 +259,62 @@ def select_bar(update, context):
 
 
 def select_zeh(update, context):
+    Holder.place = ZEH
     goods = make_goods_buttons(3)
     goods.append ([InlineKeyboardButton ("Добавить позицию", callback_data=str (ADD_NEW_POSITION) + str (BAR)),
                    InlineKeyboardButton ("Назад", callback_data=str (END))])
     kb = InlineKeyboardMarkup (goods)
 
-    update.callback_query.answer ( )
+    update.callback_query.answer()
     update.callback_query.edit_message_text ("Заказ Цех: ", reply_markup=kb)
 
 
 def product_handler(update, context):
-    db.add_to_order(gid=update.callback_query.data)
-    current_product = db.get_goods_by_id(int(update.callback_query.data))
+    Holder.product = update.callback_query.data
+    buttons = [[InlineKeyboardButton("Назад", callback_data=str(END))]]
+    kb = InlineKeyboardMarkup(buttons)
+
+
     update.callback_query.answer()
     try:
+        current_product = db.get_goods_by_id (int (Holder.product))
         update.callback_query.edit_message_text(
-            '1 ' + current_product[2] + ' ' + current_product[1] + " добавлен в заказ",
-            reply_markup=update.callback_query.message['reply_markup']
-        )
-    except BadRequest as e:
+            "Введите сколько {} {} нужно добавить\nЧто бы уменьшить количество напишите чило с минусом ( -5, -7)"
+                .format(current_product[2] , current_product[1]), reply_markup=kb)
+    except Exception as e:
         print(e)
+
+    return TYPING_COUNT
+
+def add_goods_count(update, context):
+    data = update.message.text
+    res = re.match(r'^\s*-*((\d+\.+\d{1,2})|(\d+))\s*$', data)
+    if res is not None:
+        count = res[0]
+        current_product = db.get_goods_by_id(int(Holder.product))
+        try:
+            db.add_to_order (Holder.product, count=count)
+            s_mes = context.bot.send_message (update.message.chat_id,
+                                              count + ' ' + current_product[2] + ' ' + current_product[1] + " Готово!")
+        except Exception as e:
+            print(e)
+
+        def message_deleter(cont) :
+            cont.bot.delete_message (update.message.chat_id, update.message.message_id)
+            cont.bot.delete_message (update.message.chat_id, s_mes['message_id'])
+
+        context.job_queue.run_once(message_deleter, DELETE_MESSAGE_PAUSE-2)
+
+def returning(update, context):
+    pl_dict = {KITCHEN : select_kitchen, BAR : select_bar, ZEH : select_zeh}
+    update.callback_query.answer()
+    pl_dict[Holder.place](update, context)
+
+    return SELECTING_PLACE
 
 
 def add_new_position(update, context):
-    text = "Введите название позиции, через запятую введите единицы измерения, затем через запятую введите" \
-           " идентификатор(К - кухня, Ц - цех, или Б - бар)\nНапример: Куриное филе, кг., К"
+    text = "Введите название позиции, через запятую введите единицы измерения\nНапример: Куриное филе, кг."
 
     buttons = [[
         InlineKeyboardButton("Назад",    callback_data=str(END))
@@ -290,11 +327,12 @@ def add_new_position(update, context):
 
 
 def new_position_handler(update, context):
+    pl_dict = {KITCHEN : 1, BAR : 2, ZEH : 3}
     data = update.message.text
-    if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+,\s*[КЦБкцб]+\s*$', data) is not None:
-        name, units, group = data.split(',')
+    if re.match(r'^(\s*\w+\s*)+,(\s*\w+\.*)+\s*$', data) is not None:
+        name, units = data.split(',')
         try:
-            db.add_to_goods(name.strip(), units.strip(), group.strip())
+            db.add_to_goods(name.strip(), units.strip(), pl_dict[Holder.place])
             s_mes = context.bot.send_message (update.message.chat_id,
                                               'Позиция "' + name.strip() + '" успешно добавлена')
 
@@ -350,17 +388,17 @@ def main():
             REPORTING: [CallbackQueryHandler(get_report,            pattern='^'+str(GET_REPORT)+'$'),
                         CallbackQueryHandler(get_report_xlsx,       pattern='^'+str(GET_REPORT_XLSX)+'$'),
                         CallbackQueryHandler(reporting,             pattern='^'+str(REPORTING)+'$'),
-                        CallbackQueryHandler(deep_report,          pattern='^' + str (KITCHEN_REPORT) +
+                        CallbackQueryHandler(deep_report,           pattern='^' + str (KITCHEN_REPORT) +
                                                                             '|' + str(BAR_REPORT) +
                                                                             '|' + str(ZEH_REPORT) + '$'),
                         CallbackQueryHandler(start,                 pattern='^'+str(START)+'$')],
 
             ORDERS_START: [CallbackQueryHandler(create_order,       pattern='^'+str(CREATING_ORDER)+'$'),
-                           CallbackQueryHandler(change_order, pattern='^' + str(HISTORY) + '$'),
+                           CallbackQueryHandler(change_order,       pattern='^' + str(HISTORY) + '$'),
                            CallbackQueryHandler(delete_order,       pattern='^'+str(DELETING_ORDER)+'$'),
-                           CallbackQueryHandler(choose_old_order, pattern='^' + str(HISTORY) + '\d*$'),
+                           CallbackQueryHandler(choose_old_order,   pattern='^' + str(HISTORY) + '\d*$'),
                            CallbackQueryHandler(close_order,        pattern='^'+str(CLOSING_ORDER)+'$'),
-                           CallbackQueryHandler(add_to_order, pattern='^' + str(SELECTING_PLACE) + '$'),
+                           CallbackQueryHandler(add_to_order,       pattern='^' + str(SELECTING_PLACE) + '$'),
                            CallbackQueryHandler(start,              pattern='^'+str(START)+'$'),
                            CallbackQueryHandler(orders_start,       pattern='^'+str(END)+'$')],
 
@@ -370,11 +408,16 @@ def main():
                               CallbackQueryHandler(orders_start,    pattern='^'+str(END)+'$'),
                               CallbackQueryHandler(product_handler, pattern='^\d*$'),
                               CallbackQueryHandler(
-                                  add_new_position, pattern='^'+str(ADD_NEW_POSITION)+str(KITCHEN) +
-                                                            '|'+str(ADD_NEW_POSITION)+str(BAR)+'$')
+                                  add_new_position,                 pattern='^'+str(ADD_NEW_POSITION)+str(KITCHEN) +
+                                                                            '|'+str(ADD_NEW_POSITION)+str(BAR)+'$')
                               ],
+
+            TYPING_COUNT:[MessageHandler(Filters.text & ~Filters.command, add_goods_count),
+                          CallbackQueryHandler(returning,     pattern='^' + str(END) + '$')
+                          ],
+
             TYPING: [MessageHandler(Filters.text & ~Filters.command, new_position_handler),
-                     CallbackQueryHandler(add_to_order, pattern='^' + str(END) + '$')]
+                     CallbackQueryHandler(returning,             pattern='^' + str(END) + '$')]
         },
         fallbacks=[CommandHandler("stop", stop)]
     )

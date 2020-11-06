@@ -49,11 +49,8 @@ class DBHandler:
         return self._current_order, self._cursor.execute('SELECT * FROM "' + str(self._current_order) + '"').fetchall()
 
     def add_to_goods(self, name, units, group):
-        groups = {'К': 1,
-                  'Б': 2,
-                  'Ц': 3}
         self._cursor.execute(
-            'INSERT INTO "main"."goods" (name, units, gr) VALUES ("{}", "{}", {})'.format(name, units, groups[group]))
+            'INSERT INTO "main"."goods" (name, units, gr) VALUES ("{}", "{}", {})'.format(name, units, group))
         self._db.commit()
 
     def add_many_to_goods(self, goods_list):
@@ -92,7 +89,7 @@ class DBHandler:
         return new_order, True
 
     def order_is_present(self, other_order=None):
-        target_order = 'order_'+str(datetime.today().date()) if other_order is None else other_order
+        target_order = ('order_'+str(datetime.today().date())) if other_order is None else other_order
         tables = self._cursor.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         if (target_order,) in tables:
             if self._current_order is None:
@@ -101,7 +98,7 @@ class DBHandler:
         else:
             return False
 
-    def add_to_order(self, gid):
+    def add_to_order(self, gid, count):
         order_name, order = self.get_current_order()
         gid_in_order = False
         if len(order) == 0:
@@ -114,21 +111,34 @@ class DBHandler:
 
         if not gid_in_order:
             self._cursor.execute(
-                'INSERT INTO "main"."'+str(self._current_order)+'" ("goods_id", "count") VALUES ('+str(gid)+', 1);')
+                'INSERT INTO "main"."'+str(self._current_order)+'" ("goods_id", "count") VALUES ('+str(gid)+', ' + count + ');')
             self._db.commit()
         else:
             self._cursor.execute(
-                'UPDATE "main"."'+str(self._current_order)+'" SET count = count + 1 WHERE goods_id == {}'.format(gid)
+                'UPDATE "main"."'+str(self._current_order)+'" SET count = count + {} WHERE goods_id == {}'.format(count, gid)
             )
             self._db.commit()
+
+    def clear_order(self, raw_order):
+        for i in raw_order:
+            if i[1] <= 0:
+                raw_order.remove(i)
+
+        return raw_order
 
     def close_order(self, other_order=None):
         target_order = self._current_order if other_order is None else other_order
 
         if self._current_order is not None:
 
-            order = self._cursor.execute('SELECT * FROM "' + str(target_order)+'"').fetchall()
+            raw_order = self._cursor.execute('SELECT * FROM "' + str(target_order)+'"').fetchall()
+            if len(raw_order) == 0:
+                self.delete_order()
+                return
+
+            order = self.clear_order(raw_order)
             dumped_order = dumps(order)
+
             try:
                 self._cursor.execute('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format(
                     str(target_order),
@@ -175,8 +185,7 @@ class DBHandler:
                                       '%d.%m.%Y').date()
 
         old_order = 'order_' + str(get_yesterday(datetime.now().date()))
-        # print(old_order)
-        # print(self._current_order)
+
         if self.order_is_present(old_order):
             self.close_order(old_order)
 
