@@ -75,7 +75,7 @@ def text_order_list(ls, order) :
             rs += line + '\n'
         return rs
 
-    kitchen_txt = '**Кухня** \n\n' + str_sort(kitchen_txt)
+    kitchen_txt = '\n\n**Кухня** \n\n' + str_sort(kitchen_txt)
     bar_txt = '\n** Бар ** \n\n' + str_sort(bar_txt)
     zeh_txt = '\n** Цех ** \n\n' + str_sort(zeh_txt)
 
