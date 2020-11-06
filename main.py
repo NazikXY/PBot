@@ -81,7 +81,7 @@ def text_order_list(ls, order) :
             rs += line + '\n'
         return rs
 
-    kitchen_txt = '**Кухня** \n\n' + str_sort(kitchen_txt)
+    kitchen_txt = '\n\n**Кухня** \n\n' + str_sort(kitchen_txt)
     bar_txt = '\n** Бар ** \n\n' + str_sort(bar_txt)
     zeh_txt = '\n** Цех ** \n\n' + str_sort(zeh_txt)
 
@@ -98,8 +98,7 @@ def orders_start(update, context):
         text, order = db.get_current_order()
         places = [[InlineKeyboardButton("Добавить продукты", callback_data=str(SELECTING_PLACE))],
                   [InlineKeyboardButton("Закрыть", callback_data=str(CLOSING_ORDER)),
-                   InlineKeyboardButton("Удалить", callback_data=str(DELETING_ORDER)),
-                   InlineKeyboardButton("Изменить", callback_data=str(START))],
+                   InlineKeyboardButton("Удалить", callback_data=str(DELETING_ORDER))],
                   [InlineKeyboardButton("Назад", callback_data=str(START))]]
     else:
         places = [[InlineKeyboardButton("Создать заказ", callback_data=str(CREATING_ORDER)),
