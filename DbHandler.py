@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 from ast import literal_eval
 from sqlite3 import OperationalError
 from json import loads, dumps
+from config import *
+# from main import Holder
 
 
 class DBHandler:
@@ -18,6 +20,9 @@ class DBHandler:
 
     def get_order_list(self):
         return self._cursor.execute("SELECT * FROM history").fetchall()
+
+    def get_order_by_place(self, place):
+        return self._cursor.execute('SELECT * FROM "' + self.get_order_name_for_place(place) + '"').fetchall()
 
     def set_current_order_from_history(self, order_id):
         if self._current_order is None:
@@ -45,20 +50,26 @@ class DBHandler:
             except Exception as e:
                 print(e)
 
-    def get_current_order(self):
-        return self._current_order, self._cursor.execute('SELECT * FROM "' + str(self._current_order) + '"').fetchall()
+    def get_order(self, place):
+        result = self.get_order_name_for_place(place), self._cursor.execute('SELECT * FROM "' + self.get_order_name_for_place(place) + '"').fetchall()
+        print(result)
+        return result
 
-    def add_to_goods(self, name, units, group):
+    def get_goods_list(self):
+        return self._cursor.execute('SELECT * FROM "goods"').fetchall()
+
+    def add_to_goods(self, name, units, category):
+        self._current_order = 'order_'+str(datetime.today().date())
         self._cursor.execute(
-            'INSERT INTO "main"."goods" (name, units, gr) VALUES ("{}", "{}", {})'.format(name, units, group))
+            'INSERT INTO "main"."goods" (name, units, category) VALUES ("{}", "{}", "{}")'.format(name, units, category))
         self._db.commit()
 
     def add_many_to_goods(self, goods_list):
         pass
         # TODO
 
-    def get_goods_list(self, gr):
-        return self._cursor.execute('SELECT * FROM "goods" WHERE "gr" == {} ORDER BY "goods"."name"'.format(gr)).fetchall()
+    def get_goods_list_by_category(self, category):
+        return self._cursor.execute('SELECT * FROM "goods" WHERE "category" == {} ORDER BY "goods"."name"'.format(category)).fetchall()
 
     def get_goods_by_id(self, id):
         return self._cursor.execute('SELECT * FROM "goods" WHERE "gid" == {}'.format(id)).fetchone()
@@ -98,8 +109,8 @@ class DBHandler:
         else:
             return False
 
-    def add_to_order(self, gid, count):
-        order_name, order = self.get_current_order()
+    def add_to_order(self, gid, category, place, count):
+        order_name, order = self.get_order(place)
         gid_in_order = False
         if len(order) == 0:
             gid_in_order = False
@@ -111,11 +122,11 @@ class DBHandler:
 
         if not gid_in_order:
             self._cursor.execute(
-                'INSERT INTO "main"."'+str(self._current_order)+'" ("goods_id", "count") VALUES ('+str(gid)+', ' + count + ');')
+                'INSERT INTO "main"."'+self.get_order_name_for_place(place)+'" ("goods_id", "count") VALUES ('+str(gid)+', ' + count + ');')
             self._db.commit()
         else:
             self._cursor.execute(
-                'UPDATE "main"."'+str(self._current_order)+'" SET count = count + {} WHERE goods_id == {}'.format(count, gid)
+                'UPDATE "main"."'+self.get_order_name_for_place(place)+'" SET count = count + {} WHERE goods_id == {}'.format(count, gid)
             )
             self._db.commit()
 
@@ -126,38 +137,46 @@ class DBHandler:
 
         return raw_order
 
-    def close_order(self, other_order=None):
-        target_order = self._current_order if other_order is None else other_order
+    def close_order(self, place):
 
-        if self._current_order is not None:
+        target_order = self.get_order_name_for_place(place=place)
 
-            raw_order = self._cursor.execute('SELECT * FROM "' + str(target_order)+'"').fetchall()
-            if len(raw_order) == 0:
-                self.delete_order()
-                return
+        raw_order = self._cursor.execute('SELECT * FROM "' + str(target_order)+'"').fetchall()
+        if len(raw_order) == 0:
+            return
 
-            order = self.clear_order(raw_order)
-            dumped_order = dumps(order)
+        order = self.clear_order(raw_order)
+        dumped_order = dumps(order)
 
-            try:
-                self._cursor.execute('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format(
-                    str(target_order),
-                    str(dumped_order)))
-            except OperationalError:
-                self._cursor.execute ('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format (
-                    str (target_order),
-                    str (dumped_order)))
-                pass
-            self._db.commit()
-            self._cursor.execute('DROP TABLE "'+target_order+'";')
-            self._db.commit()
-            self._current_order = None
+        try:
+            self._cursor.execute('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format(
+                str(target_order)+'_'+str(datetime.now().date()),
+                str(dumped_order)))
+        except OperationalError:
+            self._cursor.execute ('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format (
+                str (target_order)+'_'+str(datetime.now().date()),
+                str (dumped_order)))
+            pass
+        self._db.commit()
+        self._cursor.execute('DELETE FROM "'+target_order+'";')
+        self._db.commit()
+        self._current_order = None
 
-    def delete_order(self):
+    def delete_order(self, place):
         if self.order_is_present():
-            self._cursor.execute ('DROP TABLE "' + self._current_order + '";')
+            self._cursor.execute ('DELETE FROM "' + self.get_order_name_for_place(place) + '";')
             self._db.commit ( )
-            self._current_order = None
+
+    def delete_from_goods(self, gid):
+        try:
+            self._cursor.execute('DELETE FROM "goods" WHERE "gid" == {}'.format(gid))
+            self._db.commit()
+        except Exception as e:
+            print(e)
+
+    def delete_from_order_by_id(self, place, id):
+        self._cursor.execute('DELETE FROM "'+self.get_order_name_for_place(place)+'" WHERE goods_id == {}'.format(id))
+
 
     def close_old_order(self):
         if self._current_order is None:
@@ -190,10 +209,19 @@ class DBHandler:
             self.close_order(old_order)
 
 
+    def get_order_name_for_place(self, place):
+        places = {KITCHEN: 'kitchen_order',
+                  BAR:'bar_order',
+                  ZEH:'zeh_order',
+                  Z_6:'z_6_order'}
+
+        return places[place]
+
+
 def main():
     db = DBHandler('bot.db')
     db.create_order()
-    print(db.get_current_order())
+    print(db.get_order(KITCHEN))
     print(db.get_goods_name_by_id(2))
     print(db.add_to_goods("Мята", "п.", 2))
 
