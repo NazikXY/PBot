@@ -51,9 +51,8 @@ class DBHandler:
                 print(e)
 
     def get_order(self, place):
-        result = self.get_order_name_for_place(place), self._cursor.execute('SELECT * FROM "' + self.get_order_name_for_place(place) + '"').fetchall()
-        print(result)
-        return result
+         return self.get_order_name_for_place(place), self._cursor.execute('SELECT * FROM "' + self.get_order_name_for_place(place) + '"').fetchall()
+
 
     def get_goods_list(self):
         return self._cursor.execute('SELECT * FROM "goods"').fetchall()
@@ -137,7 +136,7 @@ class DBHandler:
 
         return raw_order
 
-    def close_order(self, place):
+    def close_order(self, place, number):
 
         target_order = self.get_order_name_for_place(place=place)
 
@@ -149,13 +148,13 @@ class DBHandler:
         dumped_order = dumps(order)
 
         try:
-            self._cursor.execute('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format(
+            self._cursor.execute('''INSERT INTO history ("time", "value", "target") VALUES ("{}", "{}", "{}");'''.format(
                 str(target_order)+'_'+str(datetime.now().date()),
-                str(dumped_order)))
+                str(dumped_order), str(number)))
         except OperationalError:
-            self._cursor.execute ('''INSERT INTO history ("time", value) VALUES ("{}", "{}");'''.format (
+            self._cursor.execute ('''INSERT INTO history ("time", value, "target") VALUES ("{}", "{}", "{}");'''.format (
                 str (target_order)+'_'+str(datetime.now().date()),
-                str (dumped_order)))
+                str (dumped_order), str(number)))
             pass
         self._db.commit()
         self._cursor.execute('DELETE FROM "'+target_order+'";')
@@ -217,6 +216,22 @@ class DBHandler:
 
         return places[place]
 
+    def get_categories_list(self):
+        return self._cursor.execute("SELECT * FROM \"category\"").fetchall()
+
+    def new_category(self, text):
+        self._cursor.execute("INSERT INTO \"category\" (\"name\") VALUES (\"{}\")".format(text))
+        self._db.commit()
+
+    def delete_category(self, category):
+        self._cursor.execute("DELETE FROM \"category\" WHERE id == {}".format(category))
+        self._db.commit()
+        self._cursor.execute("DELETE FROM \"goods\" WHERE \"category\" == {}".format(category))
+        self._db.commit()
+
+    def get_contacts(self):
+        return self._cursor.execute('SELECT * FROM "contacts"').fetchall()
+
 
 def main():
     db = DBHandler('bot.db')
@@ -224,6 +239,11 @@ def main():
     print(db.get_order(KITCHEN))
     print(db.get_goods_name_by_id(2))
     print(db.add_to_goods("Мята", "п.", 2))
+
+db = DBHandler('bot.db')
+
+def get_db():
+    return db
 
 
 if __name__ == "__main__":

@@ -32,7 +32,6 @@ def get_report(update, context):
 
 
 def get_report_xlsx(update, context):
-    # print(dir(update.callback_query.message.chat_id))
     doc = context.bot.send_document(update.callback_query.message.chat_id, document=open('test.xlsx', 'rb'))
 
     def message_deleter(cont) :
