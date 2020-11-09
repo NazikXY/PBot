@@ -122,7 +122,19 @@ def delete_order_item(update, context):
     command, id, place = update.callback_query.data.split(';')
     update.callback_query.answer()
     db.delete_from_order_by_id(place, id)
-    return
+    # table_name, order = db.get_order (place)
+    # button_list = []
+    #
+    # for i in order :
+    #     button_list.append (InlineKeyboardButton (db.get_goods_name_by_id (i[0]) + " ➖",
+    #                                               callback_data=str (DELETE_FROM_ORDER) + ';' + str (i[0]) + ';' + str (
+    #                                                   place)))
+    # buttons = make_pairlist_from_list (button_list)
+    # buttons.append ([InlineKeyboardButton ("Назад", callback_data=str (place))])
+    #
+    # kb = InlineKeyboardMarkup (buttons)
+    update.callback_query.data = command +';'+ place
+    return delete_from_order(update, context)
 
 def change_order(update, context):
     order_list = db.get_order_list()
